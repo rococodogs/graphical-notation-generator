@@ -1,9 +1,22 @@
 (function () {
+  // the area of the score fits within
+  // (CANVAS_HEIGHT - TITLE_OFFSET) x CANVAS_WIDTH
   var CANVAS_WIDTH = 600
   var CANVAS_HEIGHT = 550
   var TITLE_OFFSET = 125
+  
+  // maximum # of strokes in a piece (this is randomly generated)
   var MAX_SCRIBBLE_STEPS = 10
-  var MAX_NUM_OF_INSTRUMENTS = 5
+  
+  // for the title, the maximum # of instruments listed
+  var MAX_NUMBER_OF_INSTRUMENTS = 5
+
+  // also for the title, the maximum # to follow a piece name
+  // (ex: 'Pertinent Forge #16')
+  var MAX_NUMBER_OF_PIECES = 50
+  
+  // debug is an object that is refreshed on `setup` + filled
+  // with some pertinant info
   var DEBUG
   
   var canvas = document.getElementById('the-loot')
@@ -21,8 +34,12 @@
   setup()
 
   function setup () {
+    // clear the debug object
     DEBUG = {}
+    
+    // clear out the canvas for a new piece
     context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+    
     setupSheetMusic(context, '#999')
     scribble(context, '#1e1e1e')
     
@@ -35,6 +52,7 @@
     console.log(DEBUG)
   }
   
+  // creates a music staff
   function staff (ctx, startX, startY, length, color) {
     if (!color) {
       color = '#000'
@@ -57,6 +75,12 @@
     ctx.stroke()
   }
   
+  // if no # of staves is provided, figures out the most that will fit within
+  // the canvas:
+  // - each line/gap is 11px (10px spacing + 1px line)
+  // - 5 lines per staff (55px)
+  // - + 25px padding below
+  // = 80px
   function setupSheetMusic (ctx, color, numberOfStaves) {
     if (!numberOfStaves) {
       numberOfStaves = Math.floor((CANVAS_HEIGHT - TITLE_OFFSET) / 80)
@@ -69,12 +93,14 @@
     }
   }
   
+  // the main drawing function. if no # of steps is provided,
+  // a number is randomly generated between 1 and MAX_SCRIBBLE_STEPS
   function scribble (ctx, color, steps) {
     ctx.beginPath()
   
     if (!steps) {
       do {
-        steps = Math.floor(Math.random() * MAX_SCRIBBLE_STEPS)
+        steps = Math.ceil(Math.random() * MAX_SCRIBBLE_STEPS)
       } while (steps === 0)
     }
     
@@ -85,8 +111,11 @@
     }
     
     ctx.strokeStyle = color
+      
+    // move to a random spot on the canvas
     ctx.moveTo(randomX(), randomY())
     
+    // for each step, make a random line
     for (var i = 0; i < steps; i++) {
       drawRandomThing(ctx)
     }
@@ -94,13 +123,19 @@
     ctx.stroke()
   }
   
+  // this is where the ~*~ fun ~*~ happens. we're picking from three
+  // random line strategies and based on some arbitrary choices, deciding
+  // what kind of line to draw:
+  // - straight line (~ 25%)
+  // - curve - quadratic (~ 50%)
+  // - curve - bezier (~ 25%)
   function drawRandomThing(context) {
     var x = randomX()
     var y = randomY()
     
-    var coinflip = Math.random() > .75
+    var coinflip = Math.random()
     
-    if (coinflip) {
+    if (coinflip > .75) {
       context.lineTo(x, y)
     }
     
@@ -119,10 +154,12 @@
     }
   }
   
+  // generate a random X coordinate within the range of 0 - CANVAS_WIDTH
   function randomX () {
     return Math.floor(Math.random() * CANVAS_WIDTH)
   }
   
+  // generate a random Y coordinate within the range of TITLE_OFFSET - CANVAS_HEIGHT
   function randomY () {
     var y = Math.floor(Math.random() * CANVAS_HEIGHT)
     
@@ -133,18 +170,25 @@
     return y
   }
   
+  // appends a link to download the score as a .png using `canvas.toDataURL()`
+  // and a hack to replace the data type to `data:application/octet-stream`
+  // (see: https://stackoverflow.com/a/20633822)
   function appendDownloadLink (title, subtitle) {
     var buttonArea = document.getElementById('button-area')
-    var link = document.getElementById('the-crook')
+    var link = buttonArea.querySelector('#the-crook')
     
     if (link) {
-      document.body.removeChild(link)
+      buttonArea.removeChild(link)
     }
     
     var filename = title.toLowerCase().replace(/#/g, '').replace(/\s+/g, '-')
-      + '--'
-      + subtitle.toLowerCase().replace(/\s+/g, '-').replace(/,/g, '')
-      + '.png'
+    
+    if (subtitle) {
+      filename = filename + '--' 
+        + subtitle.toLowerCase().replace(/\s+/g, '-').replace(/,/g, '')
+    }
+    
+    filename = filename + '.png'
     
     var a = document.createElement('a')
     a.setAttribute('id', 'the-crook')
@@ -159,6 +203,8 @@
     buttonArea.appendChild(a)
   }
     
+  // write the title to the svg (which allows it to be downloaded
+  // along with the score)
   function appendTitle (context, title, subtitle) {
     context.font = '36px "Crimsom Text", serif'
     context.fillText(title, 0, 36)
@@ -171,17 +217,21 @@
     context.fillText(subtitle, 0, (36 + 24 + 5))
   }
     
+  // pulls two random words together (sometimes pluralizing)
+  // and adds a piece number
   function generateTitle () {
     var descriptors = [
       'obstinate', 'absent', 'calm', 'quiet',
       'empty', 'pertinent', 'blocked', 'pure',
-      'glimmering', 'set',
+      'glimmering', 'set', 'explicit', 'abject',
+      'solemn',
     ]
     
     var terms = [
       'barrier', 'tremor', 'extract', 'clock',
       'abstract', 'forge', 'echo', 'path',
-      'area', 'point',
+      'area', 'point', 'ridge', 'space',
+      ''
     ]
     
     var d = descriptors[Math.floor(Math.random() * descriptors.length)]
@@ -208,13 +258,14 @@
       }
     }
     
-    title = title + ' #' + Math.ceil(Math.random() * 30)
+    title = title + ' #' + Math.ceil(Math.random() * MAX_NUMBER_OF_PIECES)
     
     DEBUG['title'] = title
     
     return title
   }
-    
+  
+  // determines which instruments should be specified to perform the piece
   function generateSubtitle () {
     var instruments = [
       'flute', 'cello', 'violin', 'harp',
@@ -222,7 +273,7 @@
       'piano', 'voice', 'orchestra'
     ]
     
-    var numberOfInstruments = Math.floor(Math.random() * MAX_NUM_OF_INSTRUMENTS)
+    var numberOfInstruments = Math.floor(Math.random() * MAX_NUMBER_OF_INSTRUMENTS)
     
     if (numberOfInstruments === 0 && Math.random() > .66) {
       numberOfInstruments = numberOfInstruments + 1
